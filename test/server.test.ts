@@ -85,8 +85,20 @@ describe('Kin MCP server', () => {
       (result.structuredContent as { doses: { medication: string; status: string }[] }).doses.map(
         (dose) => `${dose.medication} ${dose.status}`,
       ),
-      ['Metformin missed', 'Metformin due', 'Amlodipine due'],
+      ['Metformin unconfirmed', 'Metformin due', 'Amlodipine due'],
     );
+  });
+
+  it('asks about unconfirmed doses from yesterday until they are logged', async () => {
+    harness.clock.set('2026-10-23T04:00:00.000Z');
+
+    const before = await call(harness.client, 'get_today');
+    assert.match(textOf(before), /Not confirmed yet: .*Amlodipine at 9 PM yesterday/);
+    assert.match(textOf(before), /Never assume it was missed/);
+
+    await call(harness.client, 'log_medication', { medication: 'BP tablet', date: '2026-10-22' });
+    const after = await call(harness.client, 'get_today');
+    assert.doesNotMatch(textOf(after), /Amlodipine at 9 PM yesterday/);
   });
 
   it('logs a dose by nickname and counts the pill', async () => {
@@ -146,12 +158,13 @@ describe('Kin MCP server', () => {
     assert.match(textOf(result), /mood is low today/);
   });
 
-  it('notices repeatedly missed medicine', async () => {
+  it('flags doses that stay unconfirmed without calling them missed', async () => {
     harness.clock.set('2026-10-24T17:00:00.000Z');
 
     const result = await call(harness.client, 'notice_patterns', { days: 3 });
 
-    assert.match(textOf(result), /Urgent: Missed Metformin 6 times/);
+    assert.match(textOf(result), /Urgent: Metformin was not confirmed 5 times/);
+    assert.doesNotMatch(textOf(result), /missed/i);
   });
 
   it('pushes alerts to the family and suppresses duplicates', async () => {
