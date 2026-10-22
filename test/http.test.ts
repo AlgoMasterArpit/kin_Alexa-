@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { request as httpRequest, type IncomingMessage } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -10,6 +10,17 @@ import { createKinApp, type KinApp } from '../src/app.ts';
 import { createTestServices } from './support/household.ts';
 
 const TOKEN = 'test-token-0123456789abcdef0123456789';
+
+const initialize = {
+  jsonrpc: '2.0',
+  id: 1,
+  method: 'initialize',
+  params: {
+    protocolVersion: '2025-11-25',
+    capabilities: {},
+    clientInfo: { name: 'alexa-plus-probe', version: '1.0.0' },
+  },
+};
 
 async function start(apiToken?: string): Promise<{ app: KinApp; url: string }> {
   const { services } = createTestServices();
@@ -26,9 +37,7 @@ async function start(apiToken?: string): Promise<{ app: KinApp; url: string }> {
 }
 
 async function stop(app: KinApp): Promise<void> {
-  app.server.closeAllConnections();
-  app.server.close();
-  await app.mcp.close();
+  await app.close();
 }
 
 async function rpc(url: string, body: unknown, headers: Record<string, string> = {}) {
@@ -72,16 +81,7 @@ describe('HTTP transport', () => {
   });
 
   it('negotiates MCP 2025-11-25 over Streamable HTTP', async () => {
-    const { status, body } = await rpc(url, {
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: {
-        protocolVersion: '2025-11-25',
-        capabilities: {},
-        clientInfo: { name: 'alexa-plus-probe', version: '1.0.0' },
-      },
-    });
+    const { status, body } = await rpc(url, initialize);
 
     assert.equal(status, 200);
     const { result } = body as {
@@ -91,15 +91,80 @@ describe('HTTP transport', () => {
     assert.equal(result.serverInfo.name, 'kin');
   });
 
-  it('calls tools statelessly for 2025-11-25 clients', async () => {
+  it('keeps a session for 2025-11-25 clients', async () => {
+    const opened = await fetch(`${url}/mcp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+      },
+      body: JSON.stringify(initialize),
+    });
+    await opened.text();
+    const sessionId = opened.headers.get('mcp-session-id');
+    assert.ok(sessionId);
+
     const { body } = await rpc(
       url,
       { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'get_today', arguments: {} } },
-      { 'MCP-Protocol-Version': '2025-11-25' },
+      { 'MCP-Protocol-Version': '2025-11-25', 'Mcp-Session-Id': sessionId },
     );
 
     const { result } = body as { result: { content: { text: string }[] } };
     assert.match(result.content[0]?.text ?? '', /Today is Thursday, October 22\./);
+  });
+
+  it('rejects 2025-11-25 requests without a session', async () => {
+    const { status } = await rpc(
+      url,
+      { jsonrpc: '2.0', id: 3, method: 'tools/list' },
+      { 'MCP-Protocol-Version': '2025-11-25' },
+    );
+    assert.equal(status, 400);
+  });
+
+  it('asks 2025-11-25 clients to confirm orders with elicitation', async () => {
+    const client = new Client(
+      { name: 'kin-legacy-test', version: '1.0.0' },
+      { capabilities: { elicitation: { form: {} } } },
+    );
+    const prompts: string[] = [];
+    client.setRequestHandler('elicitation/create', (request) => {
+      prompts.push(request.params.message);
+      return { action: 'accept', content: { confirm: true } };
+    });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`)));
+
+    const result = await client.callTool({
+      name: 'reorder_medicine',
+      arguments: { medication: 'metformin', quantity: 60 },
+    });
+
+    assert.equal(client.getNegotiatedProtocolVersion(), '2025-11-25');
+    assert.deepEqual(prompts, ['Order 60 tablets of Metformin 500 mg?']);
+    assert.match(JSON.stringify(result.content), /placed for 60 tablets of Metformin 500 mg/);
+    await client.close();
+  });
+
+  it('confirms orders through input_required for 2026-07-28 clients', async () => {
+    const client = new Client(
+      { name: 'kin-modern-test', version: '1.0.0' },
+      { capabilities: { elicitation: { form: {} } }, versionNegotiation: { mode: 'auto' } },
+    );
+    client.setRequestHandler('elicitation/create', () => ({
+      action: 'accept',
+      content: { confirm: true },
+    }));
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`)));
+
+    const result = await client.callTool({
+      name: 'reorder_medicine',
+      arguments: { medication: 'amlodipine' },
+    });
+
+    assert.equal(client.getNegotiatedProtocolVersion(), '2026-07-28');
+    assert.match(JSON.stringify(result.content), /placed for 30 tablets of Amlodipine 5 mg/);
+    await client.close();
   });
 
   it('serves the official MCP client end to end', async () => {
@@ -131,16 +196,6 @@ describe('HTTP transport', () => {
 describe('HTTP transport with a bearer token', () => {
   let app: KinApp;
   let url: string;
-  const initialize = {
-    jsonrpc: '2.0',
-    id: 1,
-    method: 'initialize',
-    params: {
-      protocolVersion: '2025-11-25',
-      capabilities: {},
-      clientInfo: { name: 't', version: '1' },
-    },
-  };
 
   before(async () => {
     ({ app, url } = await start(TOKEN));
