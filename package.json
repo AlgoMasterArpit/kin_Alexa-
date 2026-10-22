@@ -19,7 +19,7 @@
     "dev": "npm run build:ui && node --disable-warning=ExperimentalWarning --watch --env-file-if-exists=.env src/index.ts",
     "start": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env dist/index.js",
     "seed:demo": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env src/seed/cli.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p ui/tsconfig.json",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
