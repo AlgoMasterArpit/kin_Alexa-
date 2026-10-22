@@ -1,3 +1,4 @@
+﻿import { AlertDoseRepository } from './alert-doses.ts';
 import { AlertRepository } from './alerts.ts';
 import { CheckinRepository } from './checkins.ts';
 import { transaction, type Database } from './database.ts';
@@ -6,6 +7,7 @@ import { MedicationRepository } from './medications.ts';
 import { MemoryRepository } from './memories.ts';
 import { OrderRepository } from './orders.ts';
 import { QuestionRepository } from './questions.ts';
+import { WatchdogNoticeRepository } from './watchdog-notices.ts';
 
 export interface Store {
   readonly medications: MedicationRepository;
@@ -15,6 +17,8 @@ export interface Store {
   readonly questions: QuestionRepository;
   readonly orders: OrderRepository;
   readonly alerts: AlertRepository;
+  readonly alertDoses: AlertDoseRepository;
+  readonly watchdogNotices: WatchdogNoticeRepository;
   transaction<T>(work: () => T): T;
 }
 
@@ -27,6 +31,8 @@ export function createStore(db: Database): Store {
     questions: new QuestionRepository(db),
     orders: new OrderRepository(db),
     alerts: new AlertRepository(db),
+    alertDoses: new AlertDoseRepository(db),
+    watchdogNotices: new WatchdogNoticeRepository(db),
     transaction: (work) => transaction(db, work),
   };
 }
