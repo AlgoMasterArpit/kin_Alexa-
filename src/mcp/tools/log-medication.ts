@@ -38,8 +38,8 @@ export function registerLogMedicationTool(server: McpServer, ctx: ToolContext): 
       inputSchema,
       annotations: { readOnlyHint: false, idempotentHint: true, openWorldHint: false },
     },
-    (args) => {
-      const { household } = ctx;
+    async (args) => {
+      const { household, familyAlerts } = ctx;
       const { store } = household;
       const lookup = lookupMedication(household, args.medication);
       if (!lookup.found) return lookup.result;
@@ -72,10 +72,12 @@ export function registerLogMedicationTool(server: McpServer, ctx: ToolContext): 
           status: args.status,
           recordedAt: household.timestamp(),
         });
-        if (args.status === 'taken' && previous !== 'taken')
+        if (args.status === 'taken' && previous !== 'taken') {
           store.medications.adjustPills(medication.id, -1);
-        if (args.status === 'skipped' && previous === 'taken')
+        }
+        if (args.status === 'skipped' && previous === 'taken') {
           store.medications.adjustPills(medication.id, 1);
+        }
       });
 
       const when = date === now.date ? 'today' : describeDate(date);
@@ -84,6 +86,16 @@ export function registerLogMedicationTool(server: McpServer, ctx: ToolContext): 
           ? `Noted: ${describeMedication(medication)} taken for the ${describeTime(time)} dose ${when}.`
           : `Noted: the ${describeTime(time)} ${medication.name} dose ${when} was skipped.`,
       ];
+      if (args.status === 'taken') {
+        const corrected = await familyAlerts.confirmDose(
+          { medicationId: medication.id, date, time },
+          medication.name,
+        );
+        if (corrected)
+          lines.push(
+            'The family was told earlier this dose was not confirmed; Kin has sent them an update.',
+          );
+      }
       const updated = store.medications.findById(medication.id);
       if (updated && isRunningLow(updated)) {
         lines.push(
