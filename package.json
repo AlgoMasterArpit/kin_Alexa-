@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "kin",
   "version": "0.1.0",
   "description": "An Alexa+ MCP server that helps parents who live alone stay on track with medicines, memory and wellbeing while keeping their family in the loop.",
@@ -16,14 +16,14 @@
   "scripts": {
     "build": "npm run build:ui && tsc -p tsconfig.build.json",
     "build:ui": "node scripts/build-ui.ts",
-    "dev": "npm run build:ui && node --watch --env-file-if-exists=.env src/index.ts",
-    "start": "node --env-file-if-exists=.env dist/index.js",
-    "seed:demo": "node --env-file-if-exists=.env src/seed/cli.ts",
+    "dev": "npm run build:ui && node --disable-warning=ExperimentalWarning --watch --env-file-if-exists=.env src/index.ts",
+    "start": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env dist/index.js",
+    "seed:demo": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env src/seed/cli.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node --test --test-reporter=spec \"test/**/*.test.ts\"",
+    "test": "node --disable-warning=ExperimentalWarning --test --test-reporter=spec \"test/**/*.test.ts\"",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
   },
   "dependencies": {
