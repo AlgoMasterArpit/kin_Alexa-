@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { detectConcerns, type PatternInput } from '../src/domain/patterns.ts';
@@ -33,7 +33,7 @@ const checkin = (date: string, mood: number, sleep: Checkin['sleep'] = 'good'): 
 });
 
 const base: PatternInput = {
-  today: '2026-10-22',
+  now: { date: '2026-10-22', time: '10:00' },
   windowStart: '2026-10-16',
   slots: [],
   checkins: [checkin('2026-10-21', 4), checkin('2026-10-22', 4)],
@@ -49,20 +49,65 @@ describe('detectConcerns', () => {
     assert.deepEqual(kinds({ slots: [slot('2026-10-21', 'taken')] }), []);
   });
 
-  it('escalates missed doses with how often they happen', () => {
+  it('escalates doses the parent said they skipped', () => {
     assert.deepEqual(
-      kinds({ slots: [slot('2026-10-20', 'missed'), slot('2026-10-21', 'skipped')] }),
-      ['missed_doses:info'],
+      kinds({ slots: [slot('2026-10-20', 'skipped'), slot('2026-10-21', 'skipped')] }),
+      ['skipped_doses:info'],
     );
     assert.deepEqual(
       kinds({
         slots: [
-          slot('2026-10-19', 'missed'),
-          slot('2026-10-20', 'missed'),
+          slot('2026-10-19', 'skipped'),
+          slot('2026-10-20', 'skipped'),
           slot('2026-10-21', 'skipped'),
         ],
       }),
-      ['missed_doses:urgent'],
+      ['skipped_doses:urgent'],
+    );
+  });
+
+  it('reports unlogged doses as unconfirmed, never as missed', () => {
+    const [concern] = detectConcerns({
+      ...base,
+      slots: [slot('2026-10-20', 'unconfirmed'), slot('2026-10-21', 'unconfirmed')],
+    });
+
+    assert.equal(concern?.kind, 'unconfirmed_doses');
+    assert.equal(concern.severity, 'info');
+    assert.match(concern.summary, /not confirmed 2 times .* may have been taken/);
+    assert.deepEqual(concern.slots, [
+      { medicationId: 1, date: '2026-10-20', time: '21:00' },
+      { medicationId: 1, date: '2026-10-21', time: '21:00' },
+    ]);
+  });
+
+  it('gives the parent twelve hours to confirm before counting a dose', () => {
+    assert.deepEqual(
+      kinds({
+        now: { date: '2026-10-22', time: '08:00' },
+        slots: [slot('2026-10-20', 'unconfirmed'), slot('2026-10-21', 'unconfirmed')],
+      }),
+      [],
+    );
+  });
+
+  it('escalates when doses stay unconfirmed again and again', () => {
+    assert.deepEqual(
+      kinds({
+        slots: [
+          slot('2026-10-19', 'unconfirmed'),
+          slot('2026-10-20', 'unconfirmed'),
+          slot('2026-10-21', 'unconfirmed'),
+        ],
+      }),
+      ['unconfirmed_doses:urgent'],
+    );
+  });
+
+  it('does not mix explicit skips with unconfirmed doses', () => {
+    assert.deepEqual(
+      kinds({ slots: [slot('2026-10-20', 'skipped'), slot('2026-10-21', 'unconfirmed')] }),
+      [],
     );
   });
 
@@ -118,9 +163,9 @@ describe('detectConcerns', () => {
       ...base,
       medications: [{ ...amlodipine, pillsRemaining: 2 }],
       slots: [
-        slot('2026-10-19', 'missed'),
-        slot('2026-10-20', 'missed'),
-        slot('2026-10-21', 'missed'),
+        slot('2026-10-19', 'skipped'),
+        slot('2026-10-20', 'skipped'),
+        slot('2026-10-21', 'skipped'),
       ],
     });
     assert.equal(concerns[0]?.severity, 'urgent');

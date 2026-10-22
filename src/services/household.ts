@@ -1,4 +1,4 @@
-import type { Store } from '../db/store.ts';
+﻿import type { Store } from '../db/store.ts';
 import { detectConcerns, type Concern } from '../domain/patterns.ts';
 import { buildSlots, type DoseSlot } from '../domain/schedule.ts';
 import type { Checkin, Medication, Question } from '../domain/types.ts';
@@ -57,14 +57,15 @@ export class Household {
   }
 
   review(days: number): PeriodReview {
-    const today = this.now().date;
+    const now = this.now();
+    const today = now.date;
     const from = addDays(today, -(days - 1));
     const medications = this.#store.medications.listActive();
     const slots = buildSlots(
       medications,
       this.#store.doses.listBetween(from, today),
       dateRange(from, today),
-      this.now(),
+      now,
     );
     const checkins = this.#store.checkins.latestPerDay(from, today);
     const questionsSince = new Date(this.#clock.now().getTime() - days * MS_PER_DAY).toISOString();
@@ -77,7 +78,7 @@ export class Household {
       checkins,
       questions,
       concerns: detectConcerns({
-        today,
+        now,
         windowStart: from,
         slots,
         checkins,

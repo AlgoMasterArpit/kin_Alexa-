@@ -1,20 +1,34 @@
-﻿import { daysBetween, describeDate } from '../time.ts';
+﻿import { daysBetween, describeDate, describeTime, type LocalMoment } from '../time.ts';
 import { daysOfSupply, isRunningLow } from './medications.ts';
-import type { DoseSlot } from './schedule.ts';
+import { minutesSinceSlot, type DoseSlot } from './schedule.ts';
 import { similarity } from './text.ts';
 import type { AlertSeverity, Checkin, Medication, Question } from './types.ts';
 
 export type ConcernKind =
-  'missed_doses' | 'low_mood' | 'poor_sleep' | 'no_checkin' | 'repeated_question' | 'low_supply';
+  | 'skipped_doses'
+  | 'unconfirmed_doses'
+  | 'low_mood'
+  | 'poor_sleep'
+  | 'no_checkin'
+  | 'repeated_question'
+  | 'low_supply';
+
+export interface SlotRef {
+  readonly medicationId: number;
+  readonly date: string;
+  readonly time: string;
+}
 
 export interface Concern {
   readonly kind: ConcernKind;
   readonly severity: AlertSeverity;
   readonly summary: string;
+  readonly subject?: string | undefined;
+  readonly slots?: readonly SlotRef[] | undefined;
 }
 
 export interface PatternInput {
-  readonly today: string;
+  readonly now: LocalMoment;
   readonly windowStart: string;
   readonly slots: readonly DoseSlot[];
   readonly checkins: readonly Checkin[];
@@ -23,8 +37,11 @@ export interface PatternInput {
 }
 
 export const THRESHOLDS = {
-  missedDoses: 2,
-  urgentMissedDoses: 3,
+  skippedDoses: 2,
+  urgentSkippedDoses: 3,
+  unconfirmedDoses: 2,
+  urgentUnconfirmedDoses: 3,
+  confirmationGraceMinutes: 12 * 60,
   lowMoodAverage: 2,
   poorSleepNights: 3,
   daysWithoutCheckin: 2,
@@ -35,20 +52,70 @@ export const THRESHOLDS = {
 const plural = (count: number, word: string): string =>
   `${String(count)} ${word}${count === 1 ? '' : 's'}`;
 
-function missedDoses(input: PatternInput): Concern[] {
-  const missedByMedication = Map.groupBy(
-    input.slots.filter((slot) => slot.status === 'missed' || slot.status === 'skipped'),
-    (slot) => slot.medication.name,
+export const concernKey = (concern: Concern): string =>
+  concern.subject ? `${concern.kind}:${concern.subject}` : concern.kind;
+
+const toRef = (slot: DoseSlot): SlotRef => ({
+  medicationId: slot.medication.id,
+  date: slot.date,
+  time: slot.time,
+});
+
+export function isPastConfirmationGrace(slot: DoseSlot, now: LocalMoment): boolean {
+  return (
+    slot.status === 'unconfirmed' &&
+    minutesSinceSlot(slot.date, slot.time, now) >= THRESHOLDS.confirmationGraceMinutes
   );
-  return [...missedByMedication]
-    .filter(([, slots]) => slots.length >= THRESHOLDS.missedDoses)
-    .map(([name, slots]) => ({
-      kind: 'missed_doses',
-      severity: slots.length >= THRESHOLDS.urgentMissedDoses ? 'urgent' : 'info',
-      summary: `Missed ${name} ${plural(slots.length, 'time')} since ${describeDate(input.windowStart)}.`,
+}
+
+function doseConcerns(
+  slots: readonly DoseSlot[],
+  options: {
+    kind: 'skipped_doses' | 'unconfirmed_doses';
+    minimum: number;
+    urgentAt: number;
+    describe: (name: string, slots: readonly DoseSlot[]) => string;
+  },
+): Concern[] {
+  return [...Map.groupBy(slots, (slot) => slot.medication.name)]
+    .filter(([, group]) => group.length >= options.minimum)
+    .map(([name, group]) => ({
+      kind: options.kind,
+      severity: group.length >= options.urgentAt ? 'urgent' : 'info',
+      summary: options.describe(name, group),
+      subject: name,
+      slots: group.map(toRef),
     }));
 }
 
+const describeSlots = (slots: readonly DoseSlot[]): string =>
+  slots.map((slot) => `${describeTime(slot.time)} on ${describeDate(slot.date)}`).join(', ');
+
+function skippedDoses(input: PatternInput): Concern[] {
+  return doseConcerns(
+    input.slots.filter((slot) => slot.status === 'skipped'),
+    {
+      kind: 'skipped_doses',
+      minimum: THRESHOLDS.skippedDoses,
+      urgentAt: THRESHOLDS.urgentSkippedDoses,
+      describe: (name, slots) =>
+        `Said they skipped ${name} ${plural(slots.length, 'time')} since ${describeDate(input.windowStart)}.`,
+    },
+  );
+}
+
+function unconfirmedDoses(input: PatternInput): Concern[] {
+  return doseConcerns(
+    input.slots.filter((slot) => isPastConfirmationGrace(slot, input.now)),
+    {
+      kind: 'unconfirmed_doses',
+      minimum: THRESHOLDS.unconfirmedDoses,
+      urgentAt: THRESHOLDS.urgentUnconfirmedDoses,
+      describe: (name, slots) =>
+        `${name} was not confirmed ${plural(slots.length, 'time')} (${describeSlots(slots)}). It may have been taken without telling Kin.`,
+    },
+  );
+}
 function lowMood(input: PatternInput): Concern[] {
   const recent = input.checkins.slice(-3);
   if (recent.length < 3) return [];
@@ -82,7 +149,7 @@ function poorSleep(input: PatternInput): Concern[] {
 
 function missingCheckins(input: PatternInput): Concern[] {
   const last = input.checkins.at(-1)?.date ?? input.windowStart;
-  const gap = daysBetween(last, input.today);
+  const gap = daysBetween(last, input.now.date);
   if (gap < THRESHOLDS.daysWithoutCheckin) return [];
   return [
     {
@@ -125,7 +192,8 @@ const SEVERITY_ORDER: Record<AlertSeverity, number> = { urgent: 0, info: 1 };
 
 export function detectConcerns(input: PatternInput): Concern[] {
   return [
-    ...missedDoses(input),
+    ...skippedDoses(input),
+    ...unconfirmedDoses(input),
     ...lowMood(input),
     ...poorSleep(input),
     ...missingCheckins(input),
