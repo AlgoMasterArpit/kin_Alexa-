@@ -1,0 +1,48 @@
+{
+  "name": "kin",
+  "version": "0.1.0",
+  "description": "An Alexa+ MCP server that helps parents who live alone stay on track with medicines, memory and wellbeing while keeping their family in the loop.",
+  "license": "MIT",
+  "author": "Arpit Tyagi",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlgoMasterArpit/kin_Alexa-.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "npm run build:ui && tsc -p tsconfig.build.json",
+    "build:ui": "node scripts/build-ui.ts",
+    "dev": "npm run build:ui && node --watch --env-file-if-exists=.env src/index.ts",
+    "start": "node --env-file-if-exists=.env dist/index.js",
+    "seed:demo": "node --env-file-if-exists=.env src/seed/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --test --test-reporter=spec \"test/**/*.test.ts\"",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
+  },
+  "dependencies": {
+    "@anthropic-ai/bedrock-sdk": "^1.0.0",
+    "@modelcontextprotocol/ext-apps": "^2.0.3",
+    "@modelcontextprotocol/node": "^2.1.1",
+    "@modelcontextprotocol/server": "^2.3.1",
+    "pino": "^10.4.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@modelcontextprotocol/client": "^2.3.1",
+    "@types/node": "^24.19.2",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.0"
+  }
+}
