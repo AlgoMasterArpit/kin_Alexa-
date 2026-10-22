@@ -1,4 +1,4 @@
-# Friction log
+﻿# Friction log
 
 Problems we hit while building Kin, recorded as they happened.
 
@@ -29,7 +29,7 @@ Problems we hit while building Kin, recorded as they happened.
 - **Expected:** Capabilities from `initialize` are available on later requests.
 - **Actual:** Each stateless request gets a fresh server instance, so capabilities sent at `initialize` are unknown during `tools/call`. Calling `elicitInput` for a client without elicitation fails.
 - **Severity:** Low.
-- **Workaround:** Catch the failure and fall back to an explicit `confirmed` argument that the agent sets only after the parent says yes.
+- **Workaround:** Routed 2025-era traffic with `isLegacyRequest` to our own sessionful `NodeStreamableHTTPServerTransport` wiring, so capabilities survive between requests. Clients that still cannot show prompts fall back to an explicit `confirmed` argument the agent sets only after the parent says yes.
 - **Suggestion:** Tell server authors whether the Alexa+ client declares elicitation, or recommend sessionful serving for servers that need it.
 
 ## 4. A new IAM user cannot use Bedrock until permissions are added
