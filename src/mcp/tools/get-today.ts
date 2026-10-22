@@ -3,18 +3,19 @@ import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
 import { daysOfSupply, describeMedication, isRunningLow } from '../../domain/medications.ts';
+import { SLOT_STATUSES, type SlotStatus } from '../../domain/schedule.ts';
 import { addDays, describeDate, describeTime } from '../../time.ts';
 import type { ToolContext } from '../context.ts';
 import { reply, spokenList } from '../results.ts';
 import { TODAY_VIEW_URI } from '../today-view.ts';
 
-const STATUS_PHRASES = {
+const STATUS_PHRASES: Record<SlotStatus, string> = {
   taken: 'taken',
   skipped: 'skipped',
-  missed: 'not logged yet',
+  unconfirmed: 'not confirmed yet',
   due: 'due now',
   upcoming: 'coming up',
-} as const;
+};
 
 const outputSchema = z.object({
   date: z.string(),
@@ -26,8 +27,11 @@ const outputSchema = z.object({
       dosage: z.string(),
       time: z.string(),
       timeLabel: z.string(),
-      status: z.enum(['taken', 'skipped', 'missed', 'due', 'upcoming']),
+      status: z.enum(SLOT_STATUSES),
     }),
+  ),
+  toConfirm: z.array(
+    z.object({ medication: z.string(), date: z.string(), time: z.string(), label: z.string() }),
   ),
   reminders: z.array(z.object({ date: z.string(), dateLabel: z.string(), content: z.string() })),
   checkin: z.object({ mood: z.int(), sleep: z.string(), ateWell: z.boolean() }).nullable(),
@@ -41,7 +45,7 @@ export function registerGetTodayTool(server: McpServer, ctx: ToolContext): void 
     {
       title: "Today's plan",
       description:
-        "Shows today's medicines with what has been taken, reminders for today and tomorrow, and today's check-in. Call this at the start of every conversation so you can greet the parent with what matters today.",
+        "Shows today's medicines with what has been taken, doses from yesterday and today that the parent has not confirmed yet, reminders for today and tomorrow, and today's check-in. Call this at the start of every conversation so you can greet the parent with what matters today and gently ask about any unconfirmed doses.",
       outputSchema,
       annotations: { readOnlyHint: true, openWorldHint: false },
       _meta: { ui: { resourceUri: TODAY_VIEW_URI } },
@@ -49,7 +53,17 @@ export function registerGetTodayTool(server: McpServer, ctx: ToolContext): void 
     () => {
       const { household } = ctx;
       const today = household.now().date;
-      const slots = household.slotsFor([today]);
+      const yesterday = addDays(today, -1);
+      const recentSlots = household.slotsFor([yesterday, today]);
+      const slots = recentSlots.filter((slot) => slot.date === today);
+      const toConfirm = recentSlots
+        .filter((slot) => slot.status === 'unconfirmed')
+        .map((slot) => ({
+          medication: slot.medication.name,
+          date: slot.date,
+          time: slot.time,
+          label: `${describeTime(slot.time)} ${slot.date === today ? 'today' : 'yesterday'}`,
+        }));
       const doses = slots.map((slot) => ({
         medication: slot.medication.name,
         dosage: slot.medication.dosage,
@@ -78,6 +92,7 @@ export function registerGetTodayTool(server: McpServer, ctx: ToolContext): void 
         dateLabel: describeDate(today),
         parentName: household.parentName,
         doses,
+        toConfirm,
         reminders,
         checkin: latest
           ? { mood: latest.mood, sleep: latest.sleep, ateWell: latest.ateWell }
@@ -96,6 +111,11 @@ export function registerGetTodayTool(server: McpServer, ctx: ToolContext): void 
             )}.`
           : 'No medicines are scheduled today.',
       );
+      if (toConfirm.length) {
+        lines.push(
+          `Not confirmed yet: ${spokenList(toConfirm.map((item) => `${item.medication} at ${item.label}`))}. Ask kindly whether they took it, then log the answer with log_medication for that date and time. Never assume it was missed.`,
+        );
+      }
       if (reminders.length) {
         lines.push(
           `Reminders: ${spokenList(reminders.map((item) => `${item.dateLabel.toLowerCase()}, ${item.content}`))}.`,
