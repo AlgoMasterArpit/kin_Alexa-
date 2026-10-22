@@ -1,9 +1,10 @@
-import type { LocalMoment } from '../time.ts';
+﻿import { daysBetween, type LocalMoment } from '../time.ts';
 import type { DoseEvent, Medication } from './types.ts';
 
 export const DUE_WINDOW_MINUTES = 60;
 
-export type SlotStatus = 'taken' | 'skipped' | 'missed' | 'due' | 'upcoming';
+export const SLOT_STATUSES = ['taken', 'skipped', 'unconfirmed', 'due', 'upcoming'] as const;
+export type SlotStatus = (typeof SLOT_STATUSES)[number];
 
 export interface DoseSlot {
   readonly medication: Medication;
@@ -20,12 +21,14 @@ const minutes = (time: string): number => {
 const slotKey = (medicationId: number, date: string, time: string): string =>
   `${String(medicationId)}|${date}|${time}`;
 
+export function minutesSinceSlot(date: string, time: string, now: LocalMoment): number {
+  return daysBetween(date, now.date) * 1440 + minutes(now.time) - minutes(time);
+}
+
 function statusOf(date: string, time: string, now: LocalMoment): SlotStatus {
-  if (date > now.date) return 'upcoming';
-  if (date < now.date) return 'missed';
-  const elapsed = minutes(now.time) - minutes(time);
+  const elapsed = minutesSinceSlot(date, time, now);
   if (elapsed < 0) return 'upcoming';
-  return elapsed <= DUE_WINDOW_MINUTES ? 'due' : 'missed';
+  return elapsed <= DUE_WINDOW_MINUTES ? 'due' : 'unconfirmed';
 }
 
 export function buildSlots(

@@ -1,7 +1,7 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { buildSlots, pickSlotToLog } from '../src/domain/schedule.ts';
+import { buildSlots, minutesSinceSlot, pickSlotToLog } from '../src/domain/schedule.ts';
 import type { Medication } from '../src/domain/types.ts';
 
 const metformin: Medication = {
@@ -37,19 +37,32 @@ describe('buildSlots', () => {
       slots.map((slot) => `${slot.date} ${slot.time} ${slot.status}`),
       [
         '2026-10-21 08:00 taken',
-        '2026-10-21 20:00 missed',
+        '2026-10-21 20:00 unconfirmed',
         '2026-10-22 08:00 due',
         '2026-10-22 20:00 upcoming',
       ],
     );
   });
 
-  it('marks a slot missed once the due window has passed', () => {
+  it('marks an unlogged slot unconfirmed once the due window has passed', () => {
     const [morning] = buildSlots([metformin], [], ['2026-10-22'], {
       date: '2026-10-22',
       time: '09:01',
     });
-    assert.equal(morning?.status, 'missed');
+    assert.equal(morning?.status, 'unconfirmed');
+  });
+});
+
+describe('minutesSinceSlot', () => {
+  it('counts minutes across midnight', () => {
+    assert.equal(
+      minutesSinceSlot('2026-10-21', '21:00', { date: '2026-10-22', time: '08:00' }),
+      660,
+    );
+    assert.equal(
+      minutesSinceSlot('2026-10-22', '21:00', { date: '2026-10-22', time: '20:00' }),
+      -60,
+    );
   });
 });
 
