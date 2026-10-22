@@ -1,4 +1,4 @@
-export const DOSE_STATUSES = ['taken', 'skipped'] as const;
+﻿export const DOSE_STATUSES = ['taken', 'skipped'] as const;
 export type DoseStatus = (typeof DOSE_STATUSES)[number];
 
 export const SLEEP_QUALITIES = ['poor', 'fair', 'good'] as const;
@@ -17,6 +17,7 @@ export interface Medication {
   readonly aliases: readonly string[];
   readonly schedule: readonly string[];
   readonly pillsRemaining: number | null;
+  readonly startsOn: string;
 }
 
 export interface DoseEvent {

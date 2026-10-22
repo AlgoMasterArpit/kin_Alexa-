@@ -13,6 +13,7 @@ const amlodipine: Medication = {
   aliases: [],
   schedule: ['21:00'],
   pillsRemaining: 30,
+  startsOn: '2026-01-01',
 };
 
 const slot = (date: string, status: DoseSlot['status']): DoseSlot => ({

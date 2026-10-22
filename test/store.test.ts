@@ -18,6 +18,7 @@ describe('store', () => {
       name: 'Metformin',
       dosage: '500 mg',
       schedule: ['20:00', '08:00'],
+      startsOn: '2026-10-22',
       createdAt: NOW,
     });
     store.medications.create({
@@ -26,6 +27,7 @@ describe('store', () => {
       aliases: ['bp tablet'],
       schedule: ['09:00'],
       pillsRemaining: 10,
+      startsOn: '2026-10-22',
       createdAt: NOW,
     });
 
@@ -41,6 +43,7 @@ describe('store', () => {
       dosage: '5 mg',
       schedule: ['09:00'],
       pillsRemaining: 1,
+      startsOn: '2026-10-22',
       createdAt: NOW,
     });
 
@@ -54,6 +57,7 @@ describe('store', () => {
       name: 'Amlodipine',
       dosage: '5 mg',
       schedule: ['09:00'],
+      startsOn: '2026-10-22',
       createdAt: NOW,
     });
     const slot = { medicationId: medication.id, date: '2026-10-22', time: '09:00' };

@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { daysOfSupply, isRunningLow, matchMedication } from '../src/domain/medications.ts';
@@ -10,6 +10,7 @@ const medication = (overrides: Partial<Medication> & Pick<Medication, 'id' | 'na
   aliases: [],
   schedule: ['09:00'],
   pillsRemaining: null,
+  startsOn: '2026-01-01',
   ...overrides,
 });
 

@@ -12,6 +12,7 @@ const metformin: Medication = {
   aliases: [],
   schedule: ['08:00', '20:00'],
   pillsRemaining: null,
+  startsOn: '2026-01-01',
 };
 
 const now = { date: '2026-10-22', time: '08:30' };
@@ -41,6 +42,19 @@ describe('buildSlots', () => {
         '2026-10-22 08:00 due',
         '2026-10-22 20:00 upcoming',
       ],
+    );
+  });
+
+  it('ignores days before the medicine was added to Kin', () => {
+    const slots = buildSlots(
+      [{ ...metformin, startsOn: '2026-10-22' }],
+      [],
+      ['2026-10-21', '2026-10-22'],
+      now,
+    );
+    assert.deepEqual(
+      slots.map((slot) => slot.date),
+      ['2026-10-22', '2026-10-22'],
     );
   });
 

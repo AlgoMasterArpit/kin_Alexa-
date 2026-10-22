@@ -1,4 +1,4 @@
-import type { Medication } from '../domain/types.ts';
+﻿import type { Medication } from '../domain/types.ts';
 import type { Database } from './database.ts';
 
 interface MedicationRow {
@@ -9,6 +9,7 @@ interface MedicationRow {
   aliases: string;
   schedule: string;
   pills_remaining: number | null;
+  starts_on: string;
 }
 
 export interface NewMedication {
@@ -18,10 +19,11 @@ export interface NewMedication {
   readonly aliases?: readonly string[] | undefined;
   readonly schedule: readonly string[];
   readonly pillsRemaining?: number | undefined;
+  readonly startsOn: string;
   readonly createdAt: string;
 }
 
-const COLUMNS = 'id, name, dosage, purpose, aliases, schedule, pills_remaining';
+const COLUMNS = 'id, name, dosage, purpose, aliases, schedule, pills_remaining, starts_on';
 
 function toMedication(row: MedicationRow): Medication {
   return {
@@ -32,6 +34,7 @@ function toMedication(row: MedicationRow): Medication {
     aliases: JSON.parse(row.aliases) as string[],
     schedule: (JSON.parse(row.schedule) as string[]).toSorted(),
     pillsRemaining: row.pills_remaining,
+    startsOn: row.starts_on,
   };
 }
 
@@ -43,8 +46,9 @@ export class MedicationRepository {
 
   constructor(db: Database) {
     this.#insert = db.prepare(
-      `INSERT INTO medications (name, dosage, purpose, aliases, schedule, pills_remaining, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING ${COLUMNS}`,
+      `INSERT INTO medications
+         (name, dosage, purpose, aliases, schedule, pills_remaining, starts_on, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING ${COLUMNS}`,
     );
     this.#listActive = db.prepare(
       `SELECT ${COLUMNS} FROM medications WHERE active = 1 ORDER BY name`,
@@ -64,6 +68,7 @@ export class MedicationRepository {
       JSON.stringify(input.aliases ?? []),
       JSON.stringify(input.schedule),
       input.pillsRemaining ?? null,
+      input.startsOn,
       input.createdAt,
     ) as MedicationRow | undefined;
     if (!row) throw new Error(`Failed to create medication ${input.name}`);

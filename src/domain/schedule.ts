@@ -42,6 +42,7 @@ export function buildSlots(
   );
   return dates.flatMap((date) =>
     medications
+      .filter((medication) => date >= medication.startsOn)
       .flatMap((medication) => medication.schedule.map((time) => ({ medication, date, time })))
       .toSorted(
         (a, b) =>

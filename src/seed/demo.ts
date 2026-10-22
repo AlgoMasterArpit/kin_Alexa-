@@ -84,7 +84,11 @@ export function seedDemoData(store: Store, clock: Clock, timeZone: string): void
 
   store.transaction(() => {
     const medications = MEDICATIONS.map((medication) =>
-      store.medications.create({ ...medication, createdAt: daysAgo(30) }),
+      store.medications.create({
+        ...medication,
+        startsOn: addDays(today, -30),
+        createdAt: daysAgo(30),
+      }),
     );
 
     for (let days = 6; days >= 1; days -= 1) {
