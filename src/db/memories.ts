@@ -45,8 +45,7 @@ export class MemoryRepository {
 
   add(memory: NewMemory): Memory {
     const row = this.#insert.get(memory.content, memory.remindOn, memory.createdAt) as
-      | MemoryRow
-      | undefined;
+      MemoryRow | undefined;
     if (!row) throw new Error('Failed to save memory');
     return toMemory(row);
   }
