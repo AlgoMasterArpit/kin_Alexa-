@@ -42,9 +42,27 @@ const MEDICATIONS = [
   },
 ] as const;
 
-const SKIPPED: Partial<Record<string, Partial<Record<number, DoseStatus | 'none'>>>> = {
-  Amlodipine: { 2: 'skipped', 3: 'none' },
-};
+const DOSE_OVERRIDES: readonly {
+  readonly medication: string;
+  readonly daysAgo: number;
+  readonly time?: string;
+  readonly status: DoseStatus | 'unlogged';
+}[] = [
+  { medication: 'Amlodipine', daysAgo: 3, status: 'skipped' },
+  { medication: 'Amlodipine', daysAgo: 2, status: 'skipped' },
+  { medication: 'Metformin', daysAgo: 1, time: '20:00', status: 'unlogged' },
+];
+
+function seededStatus(medication: string, daysAgo: number, time: string): DoseStatus | 'unlogged' {
+  return (
+    DOSE_OVERRIDES.find(
+      (entry) =>
+        entry.medication === medication &&
+        entry.daysAgo === daysAgo &&
+        (entry.time === undefined || entry.time === time),
+    )?.status ?? 'taken'
+  );
+}
 
 const CHECKINS: readonly (readonly [number, number, SleepQuality, boolean, string | null])[] = [
   [6, 4, 'good', true, 'Walked to the temple in the morning.'],
@@ -72,14 +90,14 @@ export function seedDemoData(store: Store, clock: Clock, timeZone: string): void
     for (let days = 6; days >= 1; days -= 1) {
       const date = addDays(today, -days);
       for (const medication of medications) {
-        const override = SKIPPED[medication.name]?.[days];
-        if (override === 'none') continue;
         for (const time of medication.schedule) {
+          const status = seededStatus(medication.name, days, time);
+          if (status === 'unlogged') continue;
           store.doses.upsert({
             medicationId: medication.id,
             date,
             time,
-            status: override ?? 'taken',
+            status,
             recordedAt: daysAgo(days),
           });
         }

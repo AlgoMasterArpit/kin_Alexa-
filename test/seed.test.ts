@@ -24,8 +24,8 @@ describe('demo seed', () => {
     assert.deepEqual(review.concerns.map((concern) => concern.kind).toSorted(), [
       'low_mood',
       'low_supply',
-      'missed_doses',
       'repeated_question',
+      'skipped_doses',
     ]);
   });
 
