@@ -34,7 +34,7 @@ async function call(
   name: string,
   args: Record<string, unknown> = {},
 ): Promise<CallToolResult> {
-  return (await client.callTool({ name, arguments: args }));
+  return await client.callTool({ name, arguments: args });
 }
 
 const textOf = (result: CallToolResult): string =>
