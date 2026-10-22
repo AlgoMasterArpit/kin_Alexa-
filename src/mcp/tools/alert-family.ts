@@ -1,4 +1,4 @@
-import type { McpServer } from '@modelcontextprotocol/server';
+﻿import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
 import { ALERT_SEVERITIES } from '../../domain/types.ts';
@@ -13,7 +13,9 @@ const inputSchema = z.object({
   severity: z
     .enum(ALERT_SEVERITIES)
     .default('info')
-    .describe('Use urgent only for missed critical medicines, falls, feeling unwell or distress.'),
+    .describe(
+      'Use urgent only for knowingly skipped critical medicines, falls, feeling unwell or distress.',
+    ),
 });
 
 export function registerAlertFamilyTool(server: McpServer, ctx: ToolContext): void {
