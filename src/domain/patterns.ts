@@ -1,4 +1,4 @@
-import { daysBetween, describeDate } from '../time.ts';
+﻿import { daysBetween, describeDate } from '../time.ts';
 import { daysOfSupply, isRunningLow } from './medications.ts';
 import type { DoseSlot } from './schedule.ts';
 import { similarity } from './text.ts';
@@ -61,7 +61,7 @@ function lowMood(input: PatternInput): Concern[] {
       kind: 'low_mood',
       severity: moods.at(-1) === 1 ? 'urgent' : 'info',
       summary: falling
-        ? `Mood has dropped three check-ins in a row (${moods.join(' → ')} out of 5).`
+        ? `Mood has dropped three check-ins in a row (${moods.join(', then ')} out of 5).`
         : `Mood has averaged ${average.toFixed(1)} out of 5 over the last three check-ins.`,
     },
   ];
