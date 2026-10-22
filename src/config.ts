@@ -68,6 +68,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new ConfigError(`Invalid environment configuration:\n${z.prettifyError(parsed.error)}`);
   }
   const values = parsed.data;
+  const loopback = ['127.0.0.1', 'localhost', '::1'].includes(values.HOST);
+  if (!loopback && !values.KIN_API_TOKEN) {
+    throw new ConfigError('KIN_API_TOKEN is required when HOST exposes Kin beyond this machine.');
+  }
+  if (!loopback && !values.KIN_ALLOWED_HOSTS) {
+    throw new ConfigError(
+      'KIN_ALLOWED_HOSTS is required when HOST exposes Kin beyond this machine.',
+    );
+  }
+  if (values.BEDROCK_ENABLED && !values.BEDROCK_REGION) {
+    throw new ConfigError('BEDROCK_REGION is required when BEDROCK_ENABLED is true.');
+  }
   return {
     host: values.HOST,
     port: values.PORT,
