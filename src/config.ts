@@ -1,4 +1,6 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
+
+import { CLOCK_TIME } from './time.ts';
 
 const csv = z
   .string()
@@ -36,6 +38,12 @@ const envSchema = z.object({
     .string()
     .regex(/^[A-Za-z0-9_-]{8,64}$/, 'must be 8-64 letters, digits, dashes or underscores')
     .optional(),
+  KIN_WATCHDOG_ENABLED: z.stringbool().default(true),
+  KIN_WATCHDOG_INTERVAL_MINUTES: z.coerce.number().int().min(1).max(240).default(15),
+  KIN_DAILY_SUMMARY_TIME: z
+    .string()
+    .regex(CLOCK_TIME, 'must be a 24-hour HH:MM time')
+    .default('21:30'),
   BEDROCK_ENABLED: z.stringbool().default(false),
   BEDROCK_REGION: z.string().optional(),
   BEDROCK_MODEL: z.string().min(1).default('anthropic.claude-opus-5-5'),
@@ -51,6 +59,11 @@ export interface Config {
   readonly apiToken: string | undefined;
   readonly allowedHosts: readonly string[] | undefined;
   readonly ntfy: { readonly baseUrl: string; readonly topic: string | undefined };
+  readonly watchdog: {
+    readonly enabled: boolean;
+    readonly intervalMs: number;
+    readonly summaryTime: string;
+  };
   readonly bedrock: {
     readonly enabled: boolean;
     readonly region: string | undefined;
@@ -90,6 +103,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     apiToken: values.KIN_API_TOKEN,
     allowedHosts: values.KIN_ALLOWED_HOSTS,
     ntfy: { baseUrl: values.NTFY_BASE_URL, topic: values.NTFY_TOPIC },
+    watchdog: {
+      enabled: values.KIN_WATCHDOG_ENABLED,
+      intervalMs: values.KIN_WATCHDOG_INTERVAL_MINUTES * 60_000,
+      summaryTime: values.KIN_DAILY_SUMMARY_TIME,
+    },
     bedrock: {
       enabled: values.BEDROCK_ENABLED,
       region: values.BEDROCK_REGION,
