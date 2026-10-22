@@ -42,7 +42,7 @@ flowchart LR
   ntfy --> family([Family's phones])
 ```
 
-- `createMcpHandler` from the MCP TypeScript SDK v2 serves 2026-07-28 requests and falls back to stateless serving for 2025-11-25 clients. Kin keeps no session state in memory; everything lives in SQLite, so any request can land on any instance.
+- One `/mcp` endpoint serves both protocol eras. 2025-11-25 clients get sessionful Streamable HTTP (`Mcp-Session-Id`) so the server can send them elicitation requests; 2026-07-28 clients are served per request by `createMcpHandler`. Household data lives in SQLite, not in the protocol session.
 - Confirmation works in both protocol eras: push-style `elicitation/create` for 2025-11-25 clients, `input_required` results for 2026-07-28 clients, and an explicit `confirmed` argument for clients that cannot show prompts.
 - The today card is a single self-contained HTML file built with esbuild from `ui/today`, served as `text/html;profile=mcp-app` and themed by the host.
 
