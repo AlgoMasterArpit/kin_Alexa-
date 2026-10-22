@@ -18,17 +18,35 @@ Millions of parents live alone while their children work in other cities. The ch
 
 | Tool               | What it does                                                                                                  |
 | ------------------ | ------------------------------------------------------------------------------------------------------------- |
-| `get_today`        | Today's medicines with status, reminders for today and tomorrow, and the check-in. Renders the MCP Apps card. |
+| `get_today`        | Today's medicines with status, unconfirmed doses to ask about, reminders and the check-in. Renders the card.  |
 | `log_medication`   | Records a dose as taken or skipped, by name, nickname ("BP tablet") or purpose, for today or earlier days.    |
 | `daily_checkin`    | Saves mood, sleep, appetite and a note from a gentle conversation.                                            |
 | `remember`         | Saves something to remember, optionally tied to a date.                                                       |
 | `recall`           | Answers "when is my doctor appointment?" from saved memories and logs the question.                           |
-| `notice_patterns`  | Finds missed doses, falling mood, poor sleep, missing check-ins, repeated questions and low medicine stock.   |
+| `notice_patterns`  | Finds skipped and long-unconfirmed doses, falling mood, poor sleep, missing check-ins and repeated questions. |
 | `alert_family`     | Pushes a notification to the family through ntfy, with duplicate suppression and an audit trail.              |
 | `reorder_medicine` | Orders a refill after an elicitation prompt. Orders are simulated: no payment is taken and nothing ships.     |
 | `family_digest`    | Writes the weekly family update with Claude on Bedrock (template fallback) and can send it to the family.     |
 
 The server also ships voice instructions for the Alexa+ agent: start with `get_today`, keep replies short and spoken, never give medical advice, and send an urgent alert and point to emergency services when the parent reports a fall, chest pain or trouble breathing.
+
+Kin does not wait for the parent to speak. A background **watchdog** checks every 15 minutes, alerts the family once a day about urgent concerns, and sends an evening summary at 21:30.
+
+## Kin asks before it worries
+
+The hardest case for any caretaking app: Mom takes her 9 PM tablet but forgets to tell anyone. A naive app marks it "missed", tells her son, and after a few false alarms nobody trusts it. Kin knows the difference between what it heard and what it assumed.
+
+| Situation                                                 | What Kin does                                                                                                                                                                                     |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A dose time passes and nobody logs it                     | The dose is **unconfirmed**, never "missed". For the first 12 hours it is only something to ask about.                                                                                            |
+| Mom talks to Alexa the next morning                       | `get_today` lists the unconfirmed dose and Alexa asks: "Did you take your BP tablet last night?" Her answer is logged for that exact date and time.                                               |
+| Mom says she took it                                      | The record becomes "taken". Patterns are recomputed from the records on every check, so nothing wrong is remembered.                                                                              |
+| Mom says she skipped it on purpose                        | That is a real **skip**. Two skips are worth mentioning; three make an urgent alert.                                                                                                              |
+| Doses stay unconfirmed for over 12 hours, again and again | The watchdog alerts the family once that day, in honest words: "Amlodipine was not confirmed 3 times. It may have been taken without telling Kin. Kin will ask Mom about it next time they talk." |
+| Mom confirms a dose the family was already warned about   | Kin sends a correction straight away: "Mom confirmed taking Amlodipine (9 PM, Thursday). No need to worry about that dose."                                                                       |
+| The evening summary goes out                              | It separates confirmed, skipped and not-yet-confirmed doses: "3 of 4 doses confirmed taken. Not confirmed yet: Amlodipine 9 PM. These may have been taken; Kin will ask Mom next time they talk." |
+| A medicine was only just added to Kin                     | Days before it was added are ignored, so a new setup never starts with false alarms.                                                                                                              |
+| The weekly digest is written by Claude                    | The prompt forbids calling an unconfirmed dose "missed", and the data keeps taken, skipped and unconfirmed apart.                                                                                 |
 
 ## Architecture
 
@@ -109,21 +127,24 @@ Without Bedrock, `family_digest` uses a deterministic template, so every other f
 
 Copy `.env.example` to `.env` and adjust.
 
-| Variable            | Default                     | Purpose                                                                |
-| ------------------- | --------------------------- | ---------------------------------------------------------------------- |
-| `HOST`              | `127.0.0.1`                 | Interface to bind. Anything other than loopback requires the next two. |
-| `KIN_API_TOKEN`     |                             | Bearer token required on every MCP request (32+ characters).           |
-| `KIN_ALLOWED_HOSTS` |                             | Comma-separated hostnames accepted in the `Host` and `Origin` headers. |
-| `PORT`              | `8787`                      | HTTP port.                                                             |
-| `KIN_DB_PATH`       | `data/kin.db`               | SQLite database file.                                                  |
-| `KIN_TIMEZONE`      | `Asia/Kolkata`              | The parent's IANA time zone; all schedules are in local time.          |
-| `KIN_PARENT_NAME`   | `Mom`                       | How Kin refers to the parent.                                          |
-| `NTFY_BASE_URL`     | `https://ntfy.sh`           | ntfy server, for self-hosted ntfy.                                     |
-| `NTFY_TOPIC`        |                             | Family alert topic. Alerts are disabled when empty.                    |
-| `BEDROCK_ENABLED`   | `false`                     | Write the digest with Claude on Bedrock.                               |
-| `BEDROCK_REGION`    |                             | AWS region for Bedrock.                                                |
-| `BEDROCK_MODEL`     | `anthropic.claude-opus-5-5` | Bedrock model ID.                                                      |
-| `LOG_LEVEL`         | `info`                      | pino log level.                                                        |
+| Variable                        | Default                     | Purpose                                                                                |
+| ------------------------------- | --------------------------- | -------------------------------------------------------------------------------------- |
+| `HOST`                          | `127.0.0.1`                 | Interface to bind. Anything other than loopback requires the next two.                 |
+| `KIN_API_TOKEN`                 |                             | Bearer token required on every MCP request (32+ characters).                           |
+| `KIN_ALLOWED_HOSTS`             |                             | Comma-separated hostnames accepted in the `Host` and `Origin` headers.                 |
+| `PORT`                          | `8787`                      | HTTP port.                                                                             |
+| `KIN_DB_PATH`                   | `data/kin.db`               | SQLite database file.                                                                  |
+| `KIN_TIMEZONE`                  | `Asia/Kolkata`              | The parent's IANA time zone; all schedules are in local time.                          |
+| `KIN_PARENT_NAME`               | `Mom`                       | How Kin refers to the parent.                                                          |
+| `NTFY_BASE_URL`                 | `https://ntfy.sh`           | ntfy server, for self-hosted ntfy.                                                     |
+| `NTFY_TOPIC`                    |                             | Family alert topic. Alerts are disabled when empty.                                    |
+| `KIN_WATCHDOG_ENABLED`          | `true`                      | Check for urgent concerns and send the evening summary without waiting for the parent. |
+| `KIN_WATCHDOG_INTERVAL_MINUTES` | `15`                        | How often the watchdog checks.                                                         |
+| `KIN_DAILY_SUMMARY_TIME`        | `21:30`                     | Local time after which the evening summary is sent.                                    |
+| `BEDROCK_ENABLED`               | `false`                     | Write the digest with Claude on Bedrock.                                               |
+| `BEDROCK_REGION`                |                             | AWS region for Bedrock.                                                                |
+| `BEDROCK_MODEL`                 | `anthropic.claude-opus-5-5` | Bedrock model ID.                                                                      |
+| `LOG_LEVEL`                     | `info`                      | pino log level.                                                                        |
 
 ## Deploy
 
