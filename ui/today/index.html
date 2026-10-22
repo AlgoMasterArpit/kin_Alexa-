@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -14,7 +14,7 @@
         --line: light-dark(#e7e1d8, #363a42);
         --taken: light-dark(#1e7a46, #5fd08f);
         --due: light-dark(#a35a00, #ffb35c);
-        --missed: light-dark(#b42318, #ff8a80);
+        --skipped: light-dark(#b42318, #ff8a80);
         --calm: light-dark(#4f5bd5, #9aa4ff);
         font-family: var(--font-sans, system-ui, sans-serif);
       }
@@ -92,9 +92,12 @@
       .chip.upcoming {
         opacity: 0.75;
       }
-      .chip.missed,
       .chip.skipped {
-        color: var(--missed);
+        color: var(--skipped);
+      }
+      .chip.unconfirmed {
+        color: var(--due);
+        border-style: dashed;
       }
       .chip.calm {
         color: var(--calm);
@@ -117,6 +120,10 @@
       <section aria-labelledby="medicines-title">
         <h2 id="medicines-title">Medicines</h2>
         <ul id="doses"></ul>
+      </section>
+      <section id="confirm-section" aria-labelledby="confirm-title" hidden>
+        <h2 id="confirm-title">Please confirm</h2>
+        <ul id="confirm"></ul>
       </section>
       <section id="reminders-section" aria-labelledby="reminders-title" hidden>
         <h2 id="reminders-title">Reminders</h2>

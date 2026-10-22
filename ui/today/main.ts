@@ -6,22 +6,23 @@
   type McpUiHostContext,
 } from '@modelcontextprotocol/ext-apps';
 
-type DoseStatus = 'taken' | 'skipped' | 'missed' | 'due' | 'upcoming';
+import type { SlotStatus } from '../../src/domain/schedule.ts';
 
 interface TodayPlan {
   date: string;
   dateLabel: string;
   parentName: string;
-  doses: { medication: string; dosage: string; timeLabel: string; status: DoseStatus }[];
+  doses: { medication: string; dosage: string; timeLabel: string; status: SlotStatus }[];
+  toConfirm: { medication: string; label: string }[];
   reminders: { dateLabel: string; content: string }[];
   checkin: { mood: number; sleep: string; ateWell: boolean } | null;
   lowSupply: { medication: string; daysLeft: number }[];
 }
 
-const STATUS_LABELS: Record<DoseStatus, string> = {
+const STATUS_LABELS: Record<SlotStatus, string> = {
   taken: 'Taken',
   skipped: 'Skipped',
-  missed: 'Not logged',
+  unconfirmed: 'Not confirmed',
   due: 'Due now',
   upcoming: 'Later',
 };
@@ -80,6 +81,13 @@ function render(plan: TodayPlan): void {
       : [element('li', 'No medicines today.', 'empty')]),
   );
 
+  byId('confirm-section').hidden = plan.toConfirm.length === 0;
+  byId('confirm').replaceChildren(
+    ...plan.toConfirm.map((dose) =>
+      row(dose.medication, dose.label, { text: 'Did you take it?', tone: 'unconfirmed' }),
+    ),
+  );
+
   byId('reminders-section').hidden = plan.reminders.length === 0;
   byId('reminders').replaceChildren(
     ...plan.reminders.map((reminder) => row(reminder.content, reminder.dateLabel)),
@@ -88,7 +96,7 @@ function render(plan: TodayPlan): void {
   const checkin = byId('checkin');
   if (plan.checkin) {
     checkin.className = '';
-    checkin.textContent = `Mood: ${MOODS[plan.checkin.mood] ?? String(plan.checkin.mood)} Â· Sleep: ${plan.checkin.sleep} Â· ${plan.checkin.ateWell ? 'Eating well' : 'Needs a proper meal'}`;
+    checkin.textContent = `Mood: ${MOODS[plan.checkin.mood] ?? String(plan.checkin.mood)} · Sleep: ${plan.checkin.sleep} · ${plan.checkin.ateWell ? 'Eating well' : 'Needs a proper meal'}`;
   } else {
     checkin.className = 'empty';
     checkin.textContent = 'Not done yet.';
