@@ -8,6 +8,8 @@ const UPCOMING_DAYS = 7;
 export interface MedicationAdherence {
   readonly medication: string;
   readonly taken: number;
+  readonly skipped: number;
+  readonly unconfirmed: number;
   readonly scheduled: number;
 }
 
@@ -48,6 +50,8 @@ export function collectDigestInput(household: Household, days: number): DigestIn
       return {
         medication: medication.name,
         taken: slots.filter((slot) => slot.status === 'taken').length,
+        skipped: slots.filter((slot) => slot.status === 'skipped').length,
+        unconfirmed: slots.filter((slot) => slot.status === 'unconfirmed').length,
         scheduled: slots.length,
       };
     }),
@@ -68,6 +72,14 @@ export function collectDigestInput(household: Household, days: number): DigestIn
       quantity: order.quantity,
     })),
   };
+}
+
+function describeGaps(entry: MedicationAdherence): string {
+  const gaps = [
+    entry.skipped ? `skipped ${String(entry.skipped)}` : '',
+    entry.unconfirmed ? `${String(entry.unconfirmed)} not confirmed, may have been taken` : '',
+  ].filter(Boolean);
+  return gaps.length ? `; ${gaps.join('; ')}` : '';
 }
 
 const percent = (taken: number, scheduled: number): string =>
@@ -91,7 +103,7 @@ export function renderTemplateDigest(input: DigestInput): string {
       'Medicines:',
       ...input.adherence.map(
         (entry) =>
-          `- ${entry.medication}: ${String(entry.taken)} of ${String(entry.scheduled)} doses (${percent(entry.taken, entry.scheduled)})`,
+          `- ${entry.medication}: ${String(entry.taken)} of ${String(entry.scheduled)} doses confirmed taken (${percent(entry.taken, entry.scheduled)})${describeGaps(entry)}`,
       ),
       '',
     );
