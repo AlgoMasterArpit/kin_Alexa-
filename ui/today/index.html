@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Today with Kin</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --surface: light-dark(#fbf8f3, #1b1d21);
+        --card: light-dark(#ffffff, #25282e);
+        --ink: light-dark(#1f2328, #f1f1f1);
+        --muted: light-dark(#5d6470, #a7adb7);
+        --line: light-dark(#e7e1d8, #363a42);
+        --taken: light-dark(#1e7a46, #5fd08f);
+        --due: light-dark(#a35a00, #ffb35c);
+        --missed: light-dark(#b42318, #ff8a80);
+        --calm: light-dark(#4f5bd5, #9aa4ff);
+        font-family: var(--font-sans, system-ui, sans-serif);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--surface);
+        color: var(--ink);
+      }
+      main {
+        display: grid;
+        gap: 16px;
+        padding: 20px;
+        max-width: 720px;
+        margin: 0 auto;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.2;
+      }
+      header p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 18px;
+      }
+      section {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px 18px;
+      }
+      h2 {
+        margin: 0 0 10px;
+        font-size: 15px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 10px;
+      }
+      li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 20px;
+      }
+      .detail {
+        color: var(--muted);
+        font-size: 16px;
+      }
+      .chip {
+        flex: none;
+        border-radius: 999px;
+        padding: 4px 12px;
+        font-size: 15px;
+        font-weight: 600;
+        border: 1.5px solid currentColor;
+      }
+      .chip.taken {
+        color: var(--taken);
+      }
+      .chip.due,
+      .chip.upcoming {
+        color: var(--due);
+      }
+      .chip.upcoming {
+        opacity: 0.75;
+      }
+      .chip.missed,
+      .chip.skipped {
+        color: var(--missed);
+      }
+      .chip.calm {
+        color: var(--calm);
+      }
+      .empty {
+        color: var(--muted);
+        font-size: 18px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1 id="greeting">Good day</h1>
+        <p id="date">Loading today's plan…</p>
+      </header>
+      <section aria-labelledby="medicines-title">
+        <h2 id="medicines-title">Medicines</h2>
+        <ul id="doses"></ul>
+      </section>
+      <section id="reminders-section" aria-labelledby="reminders-title" hidden>
+        <h2 id="reminders-title">Reminders</h2>
+        <ul id="reminders"></ul>
+      </section>
+      <section aria-labelledby="checkin-title">
+        <h2 id="checkin-title">Today's check-in</h2>
+        <p id="checkin" class="empty">Not done yet.</p>
+      </section>
+      <section id="supply-section" aria-labelledby="supply-title" hidden>
+        <h2 id="supply-title">Running low</h2>
+        <ul id="supply"></ul>
+      </section>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
