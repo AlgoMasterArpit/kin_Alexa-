@@ -1,4 +1,4 @@
-export const migrations: readonly string[] = [
+﻿export const migrations: readonly string[] = [
   `
   CREATE TABLE medications (
     id INTEGER PRIMARY KEY,
@@ -71,4 +71,24 @@ export const migrations: readonly string[] = [
 
   CREATE INDEX alerts_by_created_at ON alerts (created_at);
   `,
+  `
+  CREATE TABLE alert_doses (
+    alert_id INTEGER NOT NULL REFERENCES alerts (id) ON DELETE CASCADE,
+    medication_id INTEGER NOT NULL REFERENCES medications (id) ON DELETE CASCADE,
+    scheduled_date TEXT NOT NULL,
+    scheduled_time TEXT NOT NULL,
+    corrected_at TEXT,
+    PRIMARY KEY (alert_id, medication_id, scheduled_date, scheduled_time)
+  ) STRICT;
+
+  CREATE INDEX alert_doses_by_slot ON alert_doses (medication_id, scheduled_date, scheduled_time);
+
+  CREATE TABLE watchdog_notices (
+    notice_key TEXT NOT NULL,
+    local_date TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (notice_key, local_date)
+  ) STRICT;
+  `,
+  `ALTER TABLE medications ADD COLUMN starts_on TEXT NOT NULL DEFAULT '0000-01-01'`,
 ];
