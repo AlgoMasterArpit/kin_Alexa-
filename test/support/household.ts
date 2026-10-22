@@ -1,9 +1,10 @@
-import { pino } from 'pino';
+﻿import { pino } from 'pino';
 
 import { IN_MEMORY, openDatabase } from '../../src/db/database.ts';
 import { createStore } from '../../src/db/store.ts';
 import type { KinServices } from '../../src/mcp/context.ts';
 import { templateDigestWriter } from '../../src/services/digest.ts';
+import { FamilyAlerts } from '../../src/services/family-alerts.ts';
 import { Household } from '../../src/services/household.ts';
 import type { FamilyNotification, Notifier } from '../../src/services/notifier.ts';
 import type { Clock } from '../../src/time.ts';
@@ -46,7 +47,7 @@ export function createTestServices(nowIso = '2026-10-22T15:30:00.000Z') {
   const notifier = new RecordingNotifier();
   const services: KinServices = {
     household,
-    notifier,
+    familyAlerts: new FamilyAlerts(household, notifier),
     digestWriter: templateDigestWriter,
     todayViewHtml: '<!doctype html><title>Today</title>',
     logger: pino({ level: 'silent' }),
@@ -58,6 +59,7 @@ export function createTestServices(nowIso = '2026-10-22T15:30:00.000Z') {
     aliases: ['BP tablet'],
     schedule: ['21:00'],
     pillsRemaining: 20,
+    startsOn: household.now().date,
     createdAt: clock.now().toISOString(),
   });
   store.medications.create({
@@ -66,6 +68,7 @@ export function createTestServices(nowIso = '2026-10-22T15:30:00.000Z') {
     purpose: 'diabetes',
     schedule: ['08:00', '20:00'],
     pillsRemaining: 60,
+    startsOn: household.now().date,
     createdAt: clock.now().toISOString(),
   });
   return { services, clock, store, notifier };

@@ -1,4 +1,4 @@
-import type { McpServer } from '@modelcontextprotocol/server';
+﻿import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
 import { collectDigestInput } from '../../services/digest.ts';
@@ -25,22 +25,16 @@ export function registerFamilyDigestTool(server: McpServer, ctx: ToolContext): v
       annotations: { readOnlyHint: false, openWorldHint: true },
     },
     async (args) => {
-      const { household, digestWriter, notifier } = ctx;
+      const { household, digestWriter, familyAlerts } = ctx;
       const digest = await digestWriter.write(collectDigestInput(household, args.days));
 
-      let delivery: string | undefined;
-      if (args.send_to_family) {
-        const title = `Kin weekly update for ${household.parentName}`;
-        const status = await notifier.send({ title, message: digest.text, severity: 'info' });
-        household.store.alerts.add({
-          severity: 'info',
-          title,
-          message: digest.text,
-          delivery: status,
-          createdAt: household.timestamp(),
-        });
-        delivery = status;
-      }
+      const delivery = args.send_to_family
+        ? await familyAlerts.send({
+            title: `Kin weekly update for ${household.parentName}`,
+            message: digest.text,
+            severity: 'info',
+          })
+        : undefined;
 
       const footer =
         delivery === 'sent'

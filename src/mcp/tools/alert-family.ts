@@ -29,7 +29,7 @@ export function registerAlertFamilyTool(server: McpServer, ctx: ToolContext): vo
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
     async (args) => {
-      const { household, notifier, logger } = ctx;
+      const { household, familyAlerts, logger } = ctx;
       const { store } = household;
 
       const recentSince = new Date(
@@ -44,17 +44,10 @@ export function registerAlertFamilyTool(server: McpServer, ctx: ToolContext): vo
         args.severity === 'urgent'
           ? `Urgent: ${household.parentName} needs you`
           : `Update about ${household.parentName}`;
-      const delivery = await notifier.send({
+      const delivery = await familyAlerts.send({
         title,
         message: args.message,
         severity: args.severity,
-      });
-      store.alerts.add({
-        severity: args.severity,
-        title,
-        message: args.message,
-        delivery,
-        createdAt: household.timestamp(),
       });
       logger.info({ severity: args.severity, delivery }, 'family alert processed');
 
