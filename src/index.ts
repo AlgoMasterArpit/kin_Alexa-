@@ -1,4 +1,4 @@
-import { once } from 'node:events';
+﻿import { once } from 'node:events';
 
 import { createKinApp } from './app.ts';
 import { ConfigError, loadConfig } from './config.ts';
@@ -28,15 +28,15 @@ async function main(): Promise<void> {
   const notifier = createNotifier({ ...config.ntfy, logger });
   const digestWriter = createDigestWriter({ ...config.bedrock, logger });
 
-  const { server, mcp } = createKinApp({
+  const app = createKinApp({
     services: { household, notifier, digestWriter, todayViewHtml: loadTodayViewHtml(), logger },
     logger,
     apiToken: config.apiToken,
     allowedHosts: config.allowedHosts,
   });
 
-  server.listen(config.port, config.host);
-  await once(server, 'listening');
+  app.server.listen(config.port, config.host);
+  await once(app.server, 'listening');
   logger.info(
     {
       url: `http://${config.host}:${String(config.port)}/mcp`,
@@ -51,9 +51,7 @@ async function main(): Promise<void> {
   const shutdown = (signal: NodeJS.Signals): void => {
     logger.info({ signal }, 'shutting down');
     setTimeout(() => process.exit(1), SHUTDOWN_TIMEOUT_MS).unref();
-    server.close();
-    server.closeAllConnections();
-    void mcp.close().finally(() => {
+    void app.close().finally(() => {
       db.close();
       process.exit(0);
     });
