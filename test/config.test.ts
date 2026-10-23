@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { ConfigError, loadConfig } from '../src/config.ts';
@@ -27,6 +27,14 @@ describe('loadConfig', () => {
 
     assert.deepEqual(config.allowedHosts, ['kin.example.com', 'localhost']);
     assert.equal(config.bedrock.enabled, true);
+  });
+
+  it('treats blank values from a copied .env.example as unset', () => {
+    const config = loadConfig({ KIN_API_TOKEN: '', KIN_ALLOWED_HOSTS: '', NTFY_TOPIC: ' ' });
+
+    assert.equal(config.apiToken, undefined);
+    assert.equal(config.allowedHosts, undefined);
+    assert.equal(config.ntfy.topic, undefined);
   });
 
   it('rejects unknown time zones and weak ntfy topics', () => {
